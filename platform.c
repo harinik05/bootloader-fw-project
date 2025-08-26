@@ -9,12 +9,6 @@ static uint8_t mock_flash[1024*1024] = {0xFF};
 static bool flash_busy = false;
 static struct timespec flash_start_time;
 
-static uint64_t get_time_us(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
-}
-
 bool start_flash_write(uint32_t address, const uint8_t *data, size_t length) {
     if (flash_busy) {
         printf("[FLASH] Busy - rejected\n");
