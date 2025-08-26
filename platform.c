@@ -27,7 +27,24 @@ bool start_flash_write(uint32_t address, const uint8_t *data, size_t length) {
     
     return true;
 }
-
+bool start_flash_erase(uint32_t address) {
+    if (flash_busy) {
+        printf("[FLASH] Erase busy - rejected\n");
+        return false;
+    }
+    
+    printf("[FLASH] Erasing page at 0x%08X\n", address);
+    
+    // Simulate page erase - set page to 0xFF
+    uint32_t offset = address & 0xFFFFF;
+    uint32_t page_start = (offset / FLASH_PAGE_SIZE) * FLASH_PAGE_SIZE;
+    memset(&mock_flash[page_start], 0xFF, FLASH_PAGE_SIZE);
+    
+    flash_busy = true;
+    clock_gettime(CLOCK_MONOTONIC, &flash_start_time);
+    
+    return true;
+}
 bool is_flash_operation_complete(void) {
     if (!flash_busy) return true;
     

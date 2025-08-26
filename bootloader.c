@@ -115,6 +115,9 @@ static void enter_state(bootloader_state_t new_state) {
 }
 
 static bool validate_state_transition(bootloader_state_t from, bootloader_state_t to) {
+    if (from == to) {
+        return true;
+    }
     switch (from) {
         case STATE_IDLE:
             return (to == STATE_DFU_ACTIVE || to == STATE_RUNNING_APP || 
@@ -168,13 +171,16 @@ bool bootloader_receive_packet(const uint8_t *data, size_t length) {
     return true;
 }
 
+// Replace the bootloader_process_cycle function in bootloader.c with this fixed version:
+
 void bootloader_process_cycle(void) {
     handle_timeout_checks();
     is_flash_operation_complete();
     
-    // State-specific background processing
+    // State-specific background processing - CRITICAL: This runs every cycle
     switch (bootloader.state) {
         case STATE_DFU_VERIFY:
+            printf("[BOOT] Background: Processing DFU verification\n");
             if (validate_application()) {
                 printf("[BOOT] Application validation successful\n");
                 enter_state(STATE_RUNNING_APP);
@@ -182,13 +188,14 @@ void bootloader_process_cycle(void) {
                 printf("[BOOT] Application validation failed\n");
                 enter_state(STATE_ERROR);
             }
-            break;
+            return; // Important: return here to prevent packet processing during state transition
             
         case STATE_RUNNING_APP:
+            printf("[BOOT] Background: Processing application launch\n");
             // In real implementation, would jump to application
             printf("[BOOT] Application launch simulation complete\n");
             enter_state(STATE_IDLE); // For simulation, return to idle
-            break;
+            return; // Important: return here to prevent packet processing during state transition
             
         case STATE_EMERGENCY_RECOVERY:
             // Auto-recovery after timeout
@@ -196,7 +203,19 @@ void bootloader_process_cycle(void) {
                 printf("[BOOT] Emergency recovery timeout - returning to idle\n");
                 bootloader.packets_dropped = 0; // Reset error counters
                 bootloader.error_count = 0;
+                bootloader.force_bootloader_mode = false; // Reset forced mode
                 enter_state(STATE_IDLE);
+                return; // Important: return here
+            }
+            break;
+            
+        case STATE_ERROR:
+            // Auto-recovery from error state after 5 seconds
+            if ((get_system_tick() - bootloader.state_entry_time) > 5000000) {
+                printf("[BOOT] Auto-recovery from error state\n");
+                bootloader.error_count = 0; // Reset error counter
+                enter_state(STATE_IDLE);
+                return; // Important: return here
             }
             break;
             
@@ -204,7 +223,7 @@ void bootloader_process_cycle(void) {
             break;
     }
     
-    // Process packets from buffer
+    // Process packets from buffer - only if we didn't change state above
     while (bootloader.count > 0) {
         packet_t *pkt = &bootloader.buffer[bootloader.tail];
         if (!pkt->valid) break;
@@ -228,7 +247,6 @@ void bootloader_process_cycle(void) {
                 
             case PKT_GET_STATUS:
                 printf("[BOOT] Status request\n");
-                // In real implementation, would send status packet
                 send_ack_packet();
                 break;
                 
@@ -242,6 +260,9 @@ void bootloader_process_cycle(void) {
                     printf("[BOOT] DFU session aborted\n");
                     enter_state(STATE_IDLE);
                     send_ack_packet();
+                } else {
+                    printf("[BOOT] Abort command ignored in state %d\n", bootloader.state);
+                    send_nack_packet(0x11);
                 }
                 break;
                 
@@ -264,9 +285,21 @@ void bootloader_process_cycle(void) {
                         }
                         break;
                         
+                    case STATE_DFU_VERIFY:
+                    case STATE_RUNNING_APP:
+                        // These states don't process packets - they're transitional
+                        printf("[BOOT] Packet ignored in transitional state %d\n", bootloader.state);
+                        send_nack_packet(0x11);
+                        break;
+                        
+                    case STATE_ERROR:
+                        printf("[BOOT] Packet ignored in error state\n");
+                        send_nack_packet(0x11);
+                        break;
+                        
                     default:
-                        printf("[BOOT] Packet ignored in state %d\n", bootloader.state);
-                        send_nack_packet(0x11); // Invalid state error
+                        printf("[BOOT] Unknown state %d\n", bootloader.state);
+                        send_nack_packet(0xFF);
                         break;
                 }
                 break;
@@ -335,13 +368,28 @@ static void handle_dfu_packet(packet_t *pkt, uint8_t seq, uint8_t packet_type) {
                 
                 printf("[BOOT] Data packet %d: %zu bytes payload\n", seq, payload_len);
                 
+                // Check if we need to erase a new flash page
+                if ((flash_addr % FLASH_PAGE_SIZE) == 0) {
+                    printf("[BOOT] Erasing flash page at 0x%08X\n", flash_addr);
+                    if (!start_flash_erase(flash_addr)) {
+                        printf("[BOOT] Flash erase busy - sending NACK\n");
+                        send_nack_packet(0x03);
+                        return;
+                    }
+                    // Wait for erase to complete
+                    while (!is_flash_operation_complete()) {
+                        // In real implementation, this would be non-blocking
+                    }
+                }
+                
                 if (start_flash_write(flash_addr, payload, payload_len)) {
                     bootloader.bytes_received += payload_len;
                     bootloader.expected_seq++;
                     send_ack_packet();
-                    printf("[BOOT] Progress: %d/%d bytes (%.1f%%)\n", 
+                    printf("[BOOT] Progress: %d/%d bytes (%.1f%%) - next seq: %d\n", 
                            bootloader.bytes_received, bootloader.total_size,
-                           (float)bootloader.bytes_received * 100.0f / bootloader.total_size);
+                           (float)bootloader.bytes_received * 100.0f / bootloader.total_size,
+                           bootloader.expected_seq);
                 } else {
                     printf("[BOOT] Flash busy - sending NACK\n");
                     send_nack_packet(0x03); // Flash busy
@@ -351,7 +399,9 @@ static void handle_dfu_packet(packet_t *pkt, uint8_t seq, uint8_t packet_type) {
                 send_nack_packet(0x02); // Sequence error
                 
                 // Too many sequence errors trigger recovery
-                if (++bootloader.error_count > 5) {
+                bootloader.error_count++;
+                if (bootloader.error_count > 5) {
+                    printf("[BOOT] Too many sequence errors (%d) - entering emergency recovery\n", bootloader.error_count);
                     handle_emergency_condition();
                 }
             }
@@ -363,10 +413,17 @@ static void handle_dfu_packet(packet_t *pkt, uint8_t seq, uint8_t packet_type) {
             
             if (bootloader.bytes_received == bootloader.total_size) {
                 printf("[BOOT] All data received - starting verification\n");
+                
+                // Wait for any pending flash operations to complete
+                while (!is_flash_operation_complete()) {
+                    printf("[BOOT] Waiting for flash operations to complete...\n");
+                }
+                
                 enter_state(STATE_DFU_VERIFY);
                 send_ack_packet();
             } else {
-                printf("[BOOT] Incomplete transfer\n");
+                printf("[BOOT] Incomplete transfer: %d/%d bytes\n", 
+                       bootloader.bytes_received, bootloader.total_size);
                 send_nack_packet(0x08); // Incomplete
                 enter_state(STATE_ERROR);
             }
@@ -378,7 +435,6 @@ static void handle_dfu_packet(packet_t *pkt, uint8_t seq, uint8_t packet_type) {
             break;
     }
 }
-
 static void handle_timeout_checks(void) {
     uint32_t current_time = get_system_tick();
     

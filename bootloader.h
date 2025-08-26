@@ -8,6 +8,8 @@
 #define MAX_PACKET_SIZE 256
 #define BUFFER_SIZE 16
 #define APPLICATION_START 0x08008000
+#define MAX_APPLICATION_SIZE (1024*1024)
+#define FLASH_PAGE_SIZE 2048
 
 // Extended state machine
 typedef enum {
@@ -41,6 +43,7 @@ uint32_t get_system_tick(void);
 
 // Platform functions (implemented in platform.c)
 extern bool start_flash_write(uint32_t address, const uint8_t *data, size_t length);
+extern bool start_flash_erase(uint32_t address);
 extern bool is_flash_operation_complete(void);
 extern void send_ack_packet(void);
 extern void send_nack_packet(uint8_t error_code);
