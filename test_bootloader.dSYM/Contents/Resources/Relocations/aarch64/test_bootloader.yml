@@ -1,0 +1,25 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     test_bootloader
+relocations:
+  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _bootloader_init, symObjAddr: 0x0, symBinAddr: 0x100002540, symSize: 0x44 }
+  - { offsetInCU: 0x4D, offset: 0x4D, size: 0x8, addend: 0x0, symName: _bootloader, symObjAddr: 0x1C08, symBinAddr: 0x100108000, symSize: 0x0 }
+  - { offsetInCU: 0x1A3, offset: 0x1A3, size: 0x8, addend: 0x0, symName: _bootloader_init, symObjAddr: 0x0, symBinAddr: 0x100002540, symSize: 0x44 }
+  - { offsetInCU: 0x1B8, offset: 0x1B8, size: 0x8, addend: 0x0, symName: _bootloader_receive_packet, symObjAddr: 0x44, symBinAddr: 0x100002584, symSize: 0x134 }
+  - { offsetInCU: 0x1FC, offset: 0x1FC, size: 0x8, addend: 0x0, symName: _bootloader_process_cycle, symObjAddr: 0x178, symBinAddr: 0x1000026B8, symSize: 0x448 }
+  - { offsetInCU: 0x282, offset: 0x282, size: 0x8, addend: 0x0, symName: _bootloader_print_stats, symObjAddr: 0x5C0, symBinAddr: 0x100002B00, symSize: 0x1C4 }
+  - { offsetInCU: 0x26, offset: 0x2CC, size: 0x8, addend: 0x0, symName: _start_flash_write, symObjAddr: 0x0, symBinAddr: 0x100002CC4, symSize: 0xE0 }
+  - { offsetInCU: 0x4D, offset: 0x2F3, size: 0x8, addend: 0x0, symName: _flash_start_time, symObjAddr: 0x100F70, symBinAddr: 0x100109138, symSize: 0x0 }
+  - { offsetInCU: 0x95, offset: 0x33B, size: 0x8, addend: 0x0, symName: _flash_busy, symObjAddr: 0x100F68, symBinAddr: 0x100109130, symSize: 0x0 }
+  - { offsetInCU: 0xB1, offset: 0x357, size: 0x8, addend: 0x0, symName: _mock_flash, symObjAddr: 0x296, symBinAddr: 0x100008000, symSize: 0x0 }
+  - { offsetInCU: 0xE2, offset: 0x388, size: 0x8, addend: 0x0, symName: _start_flash_write, symObjAddr: 0x0, symBinAddr: 0x100002CC4, symSize: 0xE0 }
+  - { offsetInCU: 0x134, offset: 0x3DA, size: 0x8, addend: 0x0, symName: _is_flash_operation_complete, symObjAddr: 0xE0, symBinAddr: 0x100002DA4, symSize: 0xE4 }
+  - { offsetInCU: 0x16A, offset: 0x410, size: 0x8, addend: 0x0, symName: _send_ack_packet, symObjAddr: 0x1C4, symBinAddr: 0x100002E88, symSize: 0x1C }
+  - { offsetInCU: 0x17F, offset: 0x425, size: 0x8, addend: 0x0, symName: _send_nack_packet, symObjAddr: 0x1E0, symBinAddr: 0x100002EA4, symSize: 0x38 }
+  - { offsetInCU: 0x26, offset: 0x4A8, size: 0x8, addend: 0x0, symName: _test_basic, symObjAddr: 0x0, symBinAddr: 0x100002EDC, symSize: 0x54 }
+  - { offsetInCU: 0x53, offset: 0x4D5, size: 0x8, addend: 0x0, symName: _test_basic, symObjAddr: 0x0, symBinAddr: 0x100002EDC, symSize: 0x54 }
+  - { offsetInCU: 0x77, offset: 0x4F9, size: 0x8, addend: 0x0, symName: _test_complete_session, symObjAddr: 0x54, symBinAddr: 0x100002F30, symSize: 0x1C0 }
+  - { offsetInCU: 0xFD, offset: 0x57F, size: 0x8, addend: 0x0, symName: _test_buffer_overflow, symObjAddr: 0x214, symBinAddr: 0x1000030F0, symSize: 0x148 }
+  - { offsetInCU: 0x183, offset: 0x605, size: 0x8, addend: 0x0, symName: _test_concurrent_processing, symObjAddr: 0x35C, symBinAddr: 0x100003238, symSize: 0x234 }
+  - { offsetInCU: 0x209, offset: 0x68B, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x590, symBinAddr: 0x10000346C, symSize: 0xC8 }
+...
